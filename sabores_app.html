@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Sabores da Roça — App</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f0e8; padding-bottom: 80px; }
+.app-wrapper { max-width: 430px; margin: 0 auto; }
+
+@media (min-width: 768px) {
+  body { padding-bottom: 0; background: #ede8dc; }
+  .app-wrapper { max-width: 100%; display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+  .header { grid-column: 1 / -1; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; text-align: left; }
+  .header h1 { font-size: 22px; }
+  .header p { font-size: 13px; margin-top: 0; margin-left: 10px; }
+  .sync-status { position: static; }
+  .nav { grid-column: 1; grid-row: 2; flex-direction: column; overflow-x: visible; overflow-y: auto; position: sticky; top: 0; height: 100vh; border-bottom: none; border-right: 1px solid #e8dfc8; padding: 12px 0; width: 220px; }
+  .nav-btn { flex-direction: row; justify-content: flex-start; min-width: unset; width: 100%; padding: 12px 20px; font-size: 13px; gap: 10px; border-bottom: none; border-left: 3px solid transparent; white-space: normal; text-align: left; }
+  .nav-btn.active { border-left-color: #c4922a; border-bottom-color: transparent; background: #fdf9f3; }
+  .nav-icon { font-size: 18px; }
+  .content-area { grid-column: 2; padding: 24px; overflow-y: auto; }
+  .metric-grid { grid-template-columns: repeat(4, 1fr); }
+  .metric-grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .desktop-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+  .desktop-cols .card { margin-bottom: 0; }
+  .section { padding: 0; }
+  .toast { bottom: 24px; }
+}
+@media (max-width: 767px) {
+  .desktop-cols { display: block; }
+  .content-area { padding: 0; }
+  .metric-grid-3 { grid-template-columns: 1fr 1fr; }
+}
+
+.header { background: #2c1f0e; color: #eedfa8; padding: 20px 16px 16px; text-align: center; position: relative; }
+.header h1 { font-size: 20px; font-weight: 600; }
+.header p { font-size: 12px; color: #c4a96a; margin-top: 2px; }
+.sync-status { position: absolute; top: 10px; right: 12px; font-size: 10px; display: flex; align-items: center; gap: 4px; }
+.sync-dot { width: 7px; height: 7px; border-radius: 50%; background: #aaa; flex-shrink: 0; }
+.sync-dot.ok { background: #4caf50; }
+.sync-dot.err { background: #f44336; }
+.sync-dot.sync { background: #c4922a; animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.sync-text { color: #c4a96a; }
+
+.config-banner { background: #fff3cd; border: 1px solid #f0c040; border-radius: 10px; padding: 12px 14px; margin: 12px; display: flex; gap: 10px; align-items: flex-start; }
+.config-banner-icon { font-size: 20px; flex-shrink: 0; }
+.config-banner-text { font-size: 12px; color: #7a5000; line-height: 1.5; }
+.config-banner-text strong { display: block; margin-bottom: 2px; font-size: 13px; }
+
+.nav { display: flex; background: #fff; border-bottom: 1px solid #e8dfc8; overflow-x: auto; position: sticky; top: 0; z-index: 10; }
+.nav-btn { flex: 1; min-width: 52px; padding: 10px 4px 8px; border: none; background: transparent; font-size: 9px; color: #9a8060; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; border-bottom: 2px solid transparent; white-space: nowrap; }
+.nav-btn.active { color: #2c1f0e; border-bottom-color: #c4922a; }
+.nav-icon { font-size: 18px; }
+
+.section { display: none; padding: 12px; }
+.section.active { display: block; }
+
+.card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.card-title { font-size: 13px; font-weight: 600; color: #5a4020; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+
+.metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.metric-grid-3 { display: grid; gap: 8px; margin-bottom: 12px; }
+.metric { background: #fff; border-radius: 10px; padding: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.metric-label { font-size: 11px; color: #9a8060; margin-bottom: 4px; }
+.metric-value { font-size: 20px; font-weight: 700; color: #2c1f0e; }
+.metric-value.green { color: #2d7a3a; }
+.metric-value.amber { color: #c4922a; }
+.metric-value.red { color: #c0392b; }
+.metric-sub { font-size: 11px; color: #9a8060; margin-top: 2px; }
+
+label { font-size: 12px; color: #7a6040; display: block; margin-bottom: 4px; font-weight: 500; }
+input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #e0d5c0; border-radius: 8px; font-size: 14px; color: #2c1f0e; background: #fdf9f3; margin-bottom: 10px; }
+textarea { resize: vertical; min-height: 60px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+.btn { width: 100%; padding: 12px; border-radius: 10px; border: none; background: #2c1f0e; color: #eedfa8; font-size: 14px; cursor: pointer; font-weight: 600; }
+.btn-outline { background: #fff; border: 1px solid #c8b090; color: #2c1f0e; margin-top: 8px; }
+.btn-danger { background: #fdecea; border: 1px solid #f5c6c6; color: #c0392b; margin-top: 8px; }
+.btn-amber { background: #fff8e1; border: 1px solid #f0d080; color: #c4922a; margin-top: 8px; }
+.btn-green { background: #e8f5e9; border: 1px solid #a5d6a7; color: #2d7a3a; margin-top: 8px; }
+.btn-action { padding: 7px 12px; font-size: 12px; border-radius: 8px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; border: 1px solid; margin-right: 6px; margin-top: 6px; }
+.btn-maps { background: #e8f0fe; border-color: #aac4f5; color: #1565c0; }
+.btn-whats { background: #e8f5e9; border-color: #a5d6a7; color: #1a7a32; }
+.btn-call { background: #fff8e1; border-color: #f0d080; color: #c4922a; }
+.btn-edit { background: #f3e5f5; border-color: #ce93d8; color: #6a1b9a; }
+.btn-conv { background: #e8f5e9; border-color: #a5d6a7; color: #2d7a3a; }
+
+.preview-box { background: #fdf5e8; border: 1px solid #e8d5a0; border-radius: 8px; padding: 12px; margin: 10px 0; }
+.preview-row { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
+.preview-row .lbl { color: #7a6040; }
+.preview-row .val { font-weight: 600; }
+.preview-divider { border-top: 1px solid #e8d5a0; margin: 6px 0; }
+
+.list-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f0e8d8; }
+.list-item:last-child { border-bottom: none; }
+.list-label { font-size: 13px; color: #2c1f0e; font-weight: 500; }
+.list-sub { font-size: 11px; color: #9a8060; margin-top: 1px; }
+.list-value { font-size: 14px; font-weight: 700; }
+.green { color: #2d7a3a; }
+.red { color: #c0392b; }
+.amber { color: #c4922a; }
+
+.badge { font-size: 10px; padding: 3px 8px; border-radius: 99px; font-weight: 600; }
+.badge-green { background: #e8f5e9; color: #2d7a3a; }
+.badge-amber { background: #fff8e1; color: #c4922a; }
+.badge-red { background: #fdecea; color: #c0392b; }
+.badge-blue { background: #e3f2fd; color: #1565c0; }
+.badge-purple { background: #f3e5f5; color: #6a1b9a; }
+.badge-gray { background: #f5f5f5; color: #616161; }
+
+.tags-container { display: flex; flex-wrap: wrap; gap: 6px; min-height: 36px; padding: 6px; background: #fdf9f3; border: 1px solid #e0d5c0; border-radius: 8px; margin-bottom: 6px; }
+.tag-chip { display: inline-flex; align-items: center; gap: 4px; background: #2c1f0e; color: #eedfa8; border-radius: 99px; padding: 3px 10px; font-size: 12px; font-weight: 500; }
+.tag-remove { cursor: pointer; opacity: 0.7; font-size: 15px; line-height: 1; }
+.tag-remove:hover { opacity: 1; }
+.tag-input-row { display: flex; gap: 6px; margin-bottom: 10px; }
+.tag-input-row input { margin-bottom: 0; flex: 1; }
+.tag-input-row button { padding: 10px 14px; background: #c4922a; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 700; }
+.tag-filter-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.tag-filter-chip { padding: 5px 12px; border-radius: 99px; border: 1px solid #e0d5c0; font-size: 12px; cursor: pointer; background: #fff; color: #7a6040; font-weight: 500; }
+.tag-filter-chip.active { background: #2c1f0e; color: #eedfa8; border-color: #2c1f0e; }
+
+.tab-row { display: flex; gap: 6px; margin-bottom: 12px; overflow-x: auto; }
+.tab { flex: none; padding: 7px 12px; font-size: 12px; border-radius: 8px; border: 1px solid #e0d5c0; cursor: pointer; color: #7a6040; background: #fff; font-weight: 500; white-space: nowrap; }
+.tab.active { background: #2c1f0e; color: #eedfa8; border-color: #2c1f0e; }
+.subtab { display: none; }
+.subtab.active { display: block; }
+
+.check-item { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid #f0e8d8; cursor: pointer; }
+.check-item:last-child { border-bottom: none; }
+.check-item input[type=checkbox] { width: 18px; height: 18px; flex-shrink: 0; margin-top: 2px; accent-color: #c4922a; }
+.check-text { font-size: 13px; color: #2c1f0e; line-height: 1.5; }
+.check-text.done { text-decoration: line-through; color: #b0a090; }
+.check-timer { font-size: 11px; color: #c4922a; margin-top: 3px; font-weight: 500; }
+
+.progress-bar { height: 8px; background: #f0e8d8; border-radius: 99px; overflow: hidden; }
+.progress-fill { height: 100%; background: #c4922a; border-radius: 99px; transition: width 0.3s; }
+.progress-label { font-size: 11px; color: #9a8060; margin-top: 4px; text-align: right; margin-bottom: 12px; }
+
+.empty { text-align: center; padding: 24px; color: #b0a090; font-size: 13px; }
+.ing-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0e8d8; font-size: 13px; }
+.ing-row:last-child { border-bottom: none; }
+.ing-name { color: #2c1f0e; font-weight: 500; }
+.ing-qtd { color: #c4922a; font-weight: 600; }
+
+.cliente-card { background: #fdf9f3; border: 1px solid #e8dfc8; border-radius: 10px; padding: 12px; margin-bottom: 8px; }
+.cliente-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+.cliente-nome { font-size: 14px; font-weight: 600; color: #2c1f0e; }
+.cliente-info { font-size: 12px; color: #7a6040; margin-top: 3px; }
+.cliente-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.cliente-actions { margin-top: 8px; display: flex; flex-wrap: wrap; }
+
+.rota-card { background: #fdf9f3; border: 1px solid #e8dfc8; border-radius: 10px; padding: 12px; margin-bottom: 8px; }
+.rota-header { display: flex; justify-content: space-between; align-items: center; }
+.rota-nome { font-size: 14px; font-weight: 600; color: #2c1f0e; }
+.rota-info { font-size: 12px; color: #7a6040; margin-top: 4px; }
+.rota-clientes { font-size: 11px; color: #c4922a; margin-top: 4px; font-weight: 500; }
+
+.repasse-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f0e8d8; }
+.repasse-row:last-child { border-bottom: none; }
+.saldo-box { background: #fdf5e8; border: 1px solid #e8d5a0; border-radius: 10px; padding: 14px; margin-bottom: 12px; text-align: center; }
+.saldo-label { font-size: 12px; color: #7a6040; margin-bottom: 4px; }
+.saldo-value { font-size: 28px; font-weight: 700; color: #c0392b; }
+.saldo-value.pago { color: #2d7a3a; }
+
+.troca-item { background: #fdecea; border: 1px solid #f5c6c6; border-radius: 8px; padding: 10px; margin-bottom: 8px; }
+.troca-header { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; color: #c0392b; }
+.troca-info { font-size: 11px; color: #9a8060; margin-top: 3px; }
+
+.divider { border: none; border-top: 1px solid #f0e8d8; margin: 12px 0; }
+.config-url-hint { font-size: 11px; color: #9a8060; margin-top: -6px; margin-bottom: 10px; line-height: 1.5; }
+.config-status-row { display: flex; align-items: center; gap: 8px; padding: 10px 0; }
+.info-box { background: #fff8e1; border: 1px solid #f0d080; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; font-size: 12px; color: #7a5000; }
+
+/* PROSPECÇÃO */
+.prosp-card { background: #fdf9f3; border: 1px solid #e8dfc8; border-radius: 10px; padding: 12px; margin-bottom: 8px; }
+.prosp-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+.prosp-nome { font-size: 14px; font-weight: 600; color: #2c1f0e; }
+.prosp-info { font-size: 12px; color: #7a6040; margin-top: 3px; }
+.prosp-actions { margin-top: 8px; display: flex; flex-wrap: wrap; }
+.visita-item { background: #f5f0e8; border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; font-size: 12px; color: #5a4020; }
+.visita-data { font-weight: 600; color: #2c1f0e; margin-bottom: 2px; }
+
+/* MODAL EDIÇÃO */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.modal { background: #fff; border-radius: 16px; padding: 20px; width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto; }
+.modal-title { font-size: 15px; font-weight: 700; color: #2c1f0e; margin-bottom: 16px; }
+.modal-actions { display: flex; gap: 8px; margin-top: 12px; }
+.modal-actions .btn { flex: 1; margin-top: 0; }
+
+/* PAINEL NOVO */
+.section-title { font-size: 12px; font-weight: 700; color: #9a8060; text-transform: uppercase; letter-spacing: 0.5px; margin: 16px 0 8px; }
+.trend { font-size: 11px; margin-top: 2px; }
+.trend.up { color: #2d7a3a; }
+.trend.down { color: #c0392b; }
+
+.toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: #2c1f0e; color: #eedfa8; padding: 10px 18px; border-radius: 24px; font-size: 13px; font-weight: 500; z-index: 9999; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; max-width: 90vw; text-align: center; }
+.toast.show { opacity: 1; }
+.toast.error { background: #c0392b; color: #fff; }
+.toast.success { background: #2d7a3a; color: #fff; }
+</style>
+</head>
+<body>
+<div class="app-wrapper">
+
+<div class="header">
+  <div class="sync-status">
+    <div class="sync-dot" id="sync-dot"></div>
+    <span class="sync-text" id="sync-text">offline</span>
+  </div>
+  <h1>🍯 Sabores da Roça</h1>
+  <p>Gestão completa do negócio</p>
+</div>
+
+<div class="nav">
+  <button class="nav-btn active" onclick="showSection('dashboard')" data-s="dashboard"><span class="nav-icon">📊</span>Painel</button>
+  <button class="nav-btn" onclick="showSection('vendas')" data-s="vendas"><span class="nav-icon">💰</span>Vendas</button>
+  <button class="nav-btn" onclick="showSection('rotas')" data-s="rotas"><span class="nav-icon">🗺️</span>Rotas</button>
+  <button class="nav-btn" onclick="showSection('clientes')" data-s="clientes"><span class="nav-icon">👥</span>Clientes</button>
+  <button class="nav-btn" onclick="showSection('prospecao')" data-s="prospecao"><span class="nav-icon">🎯</span>Prospecção</button>
+  <button class="nav-btn" onclick="showSection('repasse')" data-s="repasse"><span class="nav-icon">🤝</span>Repasse</button>
+  <button class="nav-btn" onclick="showSection('producao')" data-s="producao"><span class="nav-icon">🔧</span>Produção</button>
+  <button class="nav-btn" onclick="showSection('receita')" data-s="receita"><span class="nav-icon">📖</span>Receita</button>
+  <button class="nav-btn" onclick="showSection('config')" data-s="config"><span class="nav-icon">⚙️</span>Config</button>
+</div>
+
+<div class="content-area">
+<div id="config-banner" class="config-banner" style="display:none">
+  <div class="config-banner-icon">☁️</div>
+  <div class="config-banner-text"><strong>Sincronização não configurada</strong>Vá em ⚙️ Config para inserir a URL do Google Apps Script.</div>
+</div>
+
+<!-- PAINEL -->
+<div class="section active" id="sec-dashboard">
+  <div class="section-title">💰 Financeiro</div>
+  <div class="metric-grid">
+    <div class="metric"><div class="metric-label">Lucro último sábado</div><div class="metric-value green" id="d-lucro">R$ 0</div></div>
+    <div class="metric"><div class="metric-label">Receita bruta</div><div class="metric-value" id="d-receita">R$ 0</div></div>
+    <div class="metric"><div class="metric-label">Lucro acumulado mês</div><div class="metric-value green" id="d-lucro-mes">R$ 0</div></div>
+    <div class="metric"><div class="metric-label">Repasse pendente</div><div class="metric-value red" id="d-repasse">R$ 0</div></div>
+  </div>
+  <div class="section-title">📈 Crescimento</div>
+  <div class="metric-grid-3">
+    <div class="metric"><div class="metric-label">Clientes ativos</div><div class="metric-value" id="d-clientes">0</div></div>
+    <div class="metric"><div class="metric-label">Prospectos</div><div class="metric-value amber" id="d-prospectos">0</div></div>
+    <div class="metric"><div class="metric-label">Perdas trocas/mês</div><div class="metric-value red" id="d-perdas">R$ 0</div></div>
+  </div>
+  <div class="desktop-cols">
+    <div>
+      <div class="card"><div class="card-title">📋 Últimas vendas</div><div id="d-historico"><div class="empty">Nenhuma venda registrada ainda</div></div></div>
+      <div class="card"><div class="card-title">🔄 Últimas trocas</div><div id="d-trocas"><div class="empty">Nenhuma troca registrada</div></div></div>
+    </div>
+    <div>
+      <div class="card"><div class="card-title">⚠️ Validade próxima</div><div id="d-validade"><div class="empty">Nenhum lote com validade próxima</div></div></div>
+      <div class="card"><div class="card-title">🎯 Prospectos para visitar</div><div id="d-prospectos-lista"><div class="empty">Nenhum prospecto pendente</div></div></div>
+      <button class="btn btn-green" onclick="sincronizarTudo(true)">☁️ Sincronizar agora</button>
+      <button class="btn btn-outline" onclick="exportarDados()">💾 Exportar backup JSON</button>
+    </div>
+  </div>
+</div>
+
+<!-- VENDAS -->
+<div class="section" id="sec-vendas">
+  <div class="tab-row">
+    <div class="tab active" onclick="showTab('t-registrar',this)">Registrar</div>
+    <div class="tab" onclick="showTab('t-historico',this)">Histórico</div>
+    <div class="tab" onclick="showTab('t-trocas',this)">Trocas</div>
+  </div>
+  <div class="subtab active" id="t-registrar">
+    <div class="card">
+      <div class="card-title">➕ Nova venda</div>
+      <label>Data</label><input type="date" id="v-data">
+      <label>Rota</label><select id="v-rota"><option value="">Selecione a rota...</option></select>
+      <label>Cliente (opcional)</label><select id="v-cliente"><option value="">Selecione o cliente...</option></select>
+      <hr class="divider">
+      <div class="form-grid">
+        <div><label>Amarrado 30un (R$50)</label><input type="number" id="v-am30" placeholder="0" min="0" oninput="autoCalc()"></div>
+        <div><label>Amarrado 20un (R$32)</label><input type="number" id="v-am20" placeholder="0" min="0" oninput="autoCalc()"></div>
+      </div>
+      <div class="form-grid">
+        <div><label>Geleia 330g (un)</label><input type="number" id="v-330" placeholder="0" min="0" oninput="autoCalc()"></div>
+        <div><label>Geleia 120g (un)</label><input type="number" id="v-120" placeholder="0" min="0" oninput="autoCalc()"></div>
+      </div>
+      <div class="preview-box" id="v-preview" style="display:none">
+        <div class="preview-row"><span class="lbl">Receita bruta</span><span class="val green" id="v-prev-bruta"></span></div>
+        <div class="preview-row"><span class="lbl">Custo produtor (100%)</span><span class="val red" id="v-prev-custo"></span></div>
+        <div class="preview-row"><span class="lbl">Gasolina</span><span class="val red">- R$ 100,00</span></div>
+        <div class="preview-divider"></div>
+        <div class="preview-row"><span class="lbl" style="font-weight:700">Lucro líquido</span><span class="val green" id="v-prev-lucro"></span></div>
+      </div>
+      <button class="btn" onclick="salvarVenda()">💾 Salvar venda</button>
+    </div>
+  </div>
+  <div class="subtab" id="t-historico">
+    <div class="card"><div class="card-title">📋 Histórico de vendas</div><div id="v-historico-list"><div class="empty">Nenhuma venda registrada</div></div></div>
+  </div>
+  <div class="subtab" id="t-trocas">
+    <div class="card">
+      <div class="card-title">🔄 Registrar troca</div>
+      <div class="info-box">⚠️ <strong>Regra:</strong> custo ao produtor dividido 50/50 entre você e o João.</div>
+      <label>Data</label><input type="date" id="tr-data">
+      <label>Rota</label><select id="tr-rota"><option value="">Selecione a rota...</option></select>
+      <label>Cliente</label><select id="tr-cliente"><option value="">Selecione o cliente...</option></select>
+      <div class="form-grid">
+        <div><label>Geleia 60g</label><input type="number" id="tr-60" placeholder="0" min="0" oninput="calcTroca()"></div>
+        <div><label>Geleia 120g</label><input type="number" id="tr-120" placeholder="0" min="0" oninput="calcTroca()"></div>
+      </div>
+      <div class="form-grid">
+        <div><label>Geleia 330g</label><input type="number" id="tr-330" placeholder="0" min="0" oninput="calcTroca()"></div>
+        <div><label>Motivo</label><input type="text" id="tr-motivo" placeholder="Ex: vencida..."></div>
+      </div>
+      <div class="preview-box" id="tr-preview" style="display:none">
+        <div class="preview-row"><span class="lbl">Custo total</span><span class="val" id="tr-prev-total"></span></div>
+        <div class="preview-row"><span class="lbl">Sua parte (50%)</span><span class="val red" id="tr-prev-prej"></span></div>
+        <div class="preview-row"><span class="lbl">Repasse ao João (50%)</span><span class="val amber" id="tr-prev-rep"></span></div>
+        <div class="preview-row"><span class="lbl">Qtd trocada</span><span class="val" id="tr-prev-qtd"></span></div>
+      </div>
+      <button class="btn btn-danger" onclick="salvarTroca()">⚠️ Registrar troca</button>
+    </div>
+    <div class="card"><div class="card-title">🔄 Histórico de trocas</div><div id="tr-lista"><div class="empty">Nenhuma troca registrada</div></div></div>
+  </div>
+</div>
+
+<!-- ROTAS -->
+<div class="section" id="sec-rotas">
+  <div class="tab-row">
+    <div class="tab active" onclick="showTab('rot-cadastro',this)">Cadastrar</div>
+    <div class="tab" onclick="showTab('rot-lista',this)">Minhas rotas</div>
+  </div>
+  <div class="subtab active" id="rot-cadastro">
+    <div class="card">
+      <div class="card-title">🗺️ Nova rota</div>
+      <label>Nome da rota</label><input type="text" id="rot-nome" placeholder="Ex: Rota Centro, Rota Sul...">
+      <label>Dia da semana</label>
+      <select id="rot-dia"><option>Sábado</option><option>Domingo</option><option>Segunda</option><option>Terça</option><option>Quarta</option><option>Quinta</option><option>Sexta</option></select>
+      <div class="form-grid">
+        <div><label>Horário início</label><input type="time" id="rot-hora-ini"></div>
+        <div><label>Horário término</label><input type="time" id="rot-hora-fim"></div>
+      </div>
+      <label>Observações</label><textarea id="rot-obs" placeholder="Detalhes da rota, pontos de referência..."></textarea>
+      <button class="btn" onclick="salvarRota()">➕ Salvar rota</button>
+    </div>
+  </div>
+  <div class="subtab" id="rot-lista">
+    <div id="rot-cards"><div class="empty">Nenhuma rota cadastrada</div></div>
+  </div>
+</div>
+
+<!-- CLIENTES -->
+<div class="section" id="sec-clientes">
+  <div class="tab-row">
+    <div class="tab active" onclick="showTab('cli-cadastro',this)">Cadastrar</div>
+    <div class="tab" onclick="showTab('cli-lista',this)">Meus clientes</div>
+  </div>
+  <div class="subtab active" id="cli-cadastro">
+    <div class="card">
+      <div class="card-title">👤 Novo cliente</div>
+      <label>Nome / Estabelecimento</label><input type="text" id="cli-nome" placeholder="Ex: Padaria do João">
+      <label>Rota</label><select id="cli-rota"><option value="">Selecione a rota...</option></select>
+      <div class="form-grid">
+        <div><label>Telefone / WhatsApp</label><input type="tel" id="cli-tel" placeholder="(31) 9..."></div>
+        <div>
+          <label>Tipo de comércio</label>
+          <select id="cli-tipo">
+            <option value="Padaria">Padaria</option>
+            <option value="Restaurante">Restaurante</option>
+            <option value="Sacolão / Feira">Sacolão / Feira</option>
+            <option value="Mercadinho / Mercearia">Mercadinho / Mercearia</option>
+            <option value="Mercado / Mercadão">Mercado / Mercadão</option>
+            <option value="Lanchonete">Lanchonete</option>
+            <option value="Açougue">Açougue</option>
+            <option value="Bar">Bar</option>
+            <option value="Empório / Delicatessen">Empório / Delicatessen</option>
+            <option value="Distribuidora">Distribuidora</option>
+            <option value="Casa de Ração">Casa de Ração</option>
+            <option value="Outro">Outro</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div><label>Bairro</label><input type="text" id="cli-bairro" placeholder="Ex: Centro"></div>
+        <div><label>Cidade</label><input type="text" id="cli-cidade" placeholder="Ex: Lagoa Santa"></div>
+      </div>
+      <label>Localização (link Google Maps ou endereço completo)</label>
+      <input type="text" id="cli-maps" placeholder="Cole o link do Maps ou endereço completo">
+      <label>Pedido habitual</label><input type="text" id="cli-pedido" placeholder="Ex: 2 amarrados de 30un">
+      <label>Tags</label>
+      <div class="tags-container" id="cli-tags-container"></div>
+      <div class="tag-input-row">
+        <input type="text" id="cli-tag-input" placeholder="vip, fiel, semanal..." onkeydown="if(event.key==='Enter'){event.preventDefault();addTag('cli')}">
+        <button onclick="addTag('cli')">+</button>
+      </div>
+      <label>Observações</label><textarea id="cli-obs" placeholder="Preferências, horário de atendimento..."></textarea>
+      <button class="btn" onclick="salvarCliente()">➕ Salvar cliente</button>
+    </div>
+  </div>
+  <div class="subtab" id="cli-lista">
+    <div style="margin-bottom:8px"><label>Filtrar por rota</label><select id="cli-filtro" onchange="renderClientes()"><option value="">Todas as rotas</option></select></div>
+    <div style="margin-bottom:8px"><label>Filtrar por tag</label><div class="tag-filter-row" id="cli-tag-filtros"><span class="tag-filter-chip active" onclick="filtrarTag('cli','',this)">Todos</span></div></div>
+    <div id="cli-cards"><div class="empty">Nenhum cliente cadastrado</div></div>
+  </div>
+</div>
+
+<!-- PROSPECÇÃO -->
+<div class="section" id="sec-prospecao">
+  <div class="tab-row">
+    <div class="tab active" onclick="showTab('pro-cadastro',this)">Cadastrar</div>
+    <div class="tab" onclick="showTab('pro-lista',this)">Prospectos</div>
+  </div>
+  <div class="subtab active" id="pro-cadastro">
+    <div class="card">
+      <div class="card-title">🎯 Novo prospecto</div>
+      <label>Nome / Estabelecimento</label><input type="text" id="pro-nome" placeholder="Ex: Padaria da Esquina">
+      <div class="form-grid">
+        <div><label>Telefone / WhatsApp</label><input type="tel" id="pro-tel" placeholder="(31) 9..."></div>
+        <div>
+          <label>Tipo de comércio</label>
+          <select id="pro-tipo">
+            <option value="Padaria">Padaria</option>
+            <option value="Restaurante">Restaurante</option>
+            <option value="Sacolão / Feira">Sacolão / Feira</option>
+            <option value="Mercadinho / Mercearia">Mercadinho / Mercearia</option>
+            <option value="Mercado / Mercadão">Mercado / Mercadão</option>
+            <option value="Lanchonete">Lanchonete</option>
+            <option value="Açougue">Açougue</option>
+            <option value="Bar">Bar</option>
+            <option value="Empório / Delicatessen">Empório / Delicatessen</option>
+            <option value="Distribuidora">Distribuidora</option>
+            <option value="Casa de Ração">Casa de Ração</option>
+            <option value="Outro">Outro</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div><label>Bairro</label><input type="text" id="pro-bairro" placeholder="Ex: Centro"></div>
+        <div><label>Cidade</label><input type="text" id="pro-cidade" placeholder="Ex: Lagoa Santa"></div>
+      </div>
+      <label>Localização (link Maps ou endereço)</label>
+      <input type="text" id="pro-maps" placeholder="Cole o link do Maps ou endereço">
+      <label>Rota mais próxima</label><select id="pro-rota"><option value="">Selecione a rota...</option></select>
+      <label>Status</label>
+      <select id="pro-status">
+        <option value="A visitar">A visitar</option>
+        <option value="Visitado">Visitado</option>
+        <option value="Proposta feita">Proposta feita</option>
+        <option value="Não tem interesse">Não tem interesse</option>
+      </select>
+      <label>Data prevista para visita</label><input type="date" id="pro-data-visita">
+      <label>Observações</label><textarea id="pro-obs" placeholder="Informações relevantes, contato, horário..."></textarea>
+      <button class="btn" onclick="salvarProspecto()">➕ Salvar prospecto</button>
+    </div>
+  </div>
+  <div class="subtab" id="pro-lista">
+    <div style="margin-bottom:8px">
+      <label>Filtrar por status</label>
+      <div class="tag-filter-row" id="pro-status-filtros">
+        <span class="tag-filter-chip active" onclick="filtrarProspecto('',this)">Todos</span>
+        <span class="tag-filter-chip" onclick="filtrarProspecto('A visitar',this)">A visitar</span>
+        <span class="tag-filter-chip" onclick="filtrarProspecto('Visitado',this)">Visitado</span>
+        <span class="tag-filter-chip" onclick="filtrarProspecto('Proposta feita',this)">Proposta feita</span>
+        <span class="tag-filter-chip" onclick="filtrarProspecto('Não tem interesse',this)">Sem interesse</span>
+      </div>
+    </div>
+    <div id="pro-cards"><div class="empty">Nenhum prospecto cadastrado</div></div>
+  </div>
+</div>
+
+<!-- REPASSE -->
+<div class="section" id="sec-repasse">
+  <div class="tab-row">
+    <div class="tab active" onclick="showTab('rep-resumo',this)">Resumo</div>
+    <div class="tab" onclick="showTab('rep-calcular',this)">Calcular</div>
+    <div class="tab" onclick="showTab('rep-pagamentos',this)">Pagamentos</div>
+  </div>
+  <div class="subtab active" id="rep-resumo">
+    <div class="saldo-box"><div class="saldo-label">Saldo devedor ao produtor</div><div class="saldo-value" id="rep-saldo">R$ 0,00</div></div>
+    <div class="card">
+      <div class="card-title">📊 Tabela de custos</div>
+      <div class="list-item"><div class="list-label">Geleia 60g</div><div class="list-value amber">R$ 0,67/un</div></div>
+      <div class="list-item"><div class="list-label">Geleia 120g</div><div class="list-value amber">R$ 1,25/un</div></div>
+      <div class="list-item"><div class="list-label">Geleia 330g</div><div class="list-value amber">R$ 6,00/un</div></div>
+      <div class="list-item"><div class="list-label">Amarrado 30un</div><div class="list-value amber">R$ 20,00</div></div>
+      <div class="list-item"><div class="list-label">Amarrado 20un</div><div class="list-value amber">R$ 13,40</div></div>
+      <div style="font-size:11px;color:#9a8060;margin-top:8px;">⚠️ Trocas: repasse ao produtor = 50% do custo total</div>
+    </div>
+    <div class="card"><div class="card-title">📋 Repasses gerados</div><div id="rep-lista"><div class="empty">Nenhum repasse registrado</div></div></div>
+  </div>
+  <div class="subtab" id="rep-calcular">
+    <div class="card">
+      <div class="card-title">🧮 Calcular repasse</div>
+      <div class="form-grid">
+        <div><label>Geleia 60g</label><input type="number" id="rep-60" placeholder="0" min="0" oninput="calcRepasse()"></div>
+        <div><label>Geleia 120g</label><input type="number" id="rep-120" placeholder="0" min="0" oninput="calcRepasse()"></div>
+      </div>
+      <div class="form-grid">
+        <div><label>Geleia 330g</label><input type="number" id="rep-330" placeholder="0" min="0" oninput="calcRepasse()"></div>
+        <div><label>Amarrado 30un</label><input type="number" id="rep-am30" placeholder="0" min="0" oninput="calcRepasse()"></div>
+      </div>
+      <label>Amarrado 20un</label><input type="number" id="rep-am20" placeholder="0" min="0" oninput="calcRepasse()">
+      <div class="preview-box" id="rep-preview" style="display:none">
+        <div class="preview-row"><span class="lbl">60g</span><span class="val" id="rp-60"></span></div>
+        <div class="preview-row"><span class="lbl">120g</span><span class="val" id="rp-120"></span></div>
+        <div class="preview-row"><span class="lbl">330g</span><span class="val" id="rp-330"></span></div>
+        <div class="preview-row"><span class="lbl">Amarrado 30un</span><span class="val" id="rp-am30"></span></div>
+        <div class="preview-row"><span class="lbl">Amarrado 20un</span><span class="val" id="rp-am20"></span></div>
+        <div class="preview-divider"></div>
+        <div class="preview-row"><span class="lbl" style="font-weight:700">Total a repassar</span><span class="val red" id="rp-total"></span></div>
+      </div>
+      <button class="btn" onclick="salvarRepasse()">💾 Adicionar ao saldo devedor</button>
+    </div>
+  </div>
+  <div class="subtab" id="rep-pagamentos">
+    <div class="card">
+      <div class="card-title">✅ Registrar pagamento ao produtor</div>
+      <label>Data</label><input type="date" id="pag-data">
+      <label>Valor pago</label><input type="number" id="pag-valor" placeholder="R$ 0,00" step="0.01">
+      <label>Observações</label><input type="text" id="pag-obs" placeholder="Ex: acerto sábado 10/05">
+      <button class="btn btn-amber" onclick="salvarPagamento()">✅ Registrar pagamento</button>
+    </div>
+    <div class="card"><div class="card-title">📋 Histórico de pagamentos</div><div id="pag-lista"><div class="empty">Nenhum pagamento registrado</div></div></div>
+  </div>
+</div>
+
+<!-- PRODUÇÃO -->
+<div class="section" id="sec-producao">
+  <div class="desktop-cols">
+    <div class="card">
+      <div class="card-title">📅 Registrar lote</div>
+      <div class="form-grid">
+        <div><label>Data fabricação</label><input type="date" id="p-data"></div>
+        <div><label>Qtd. geleias</label><input type="number" id="p-qtd" placeholder="Ex: 50"></div>
+      </div>
+      <label>Tamanho</label>
+      <select id="p-tam"><option value="60g">60g</option><option value="120g">120g</option><option value="330g">330g</option><option value="Misto">Misto</option></select>
+      <label>Observações</label><input type="text" id="p-obs" placeholder="Ex: geleia firme, rendeu bem...">
+      <button class="btn" onclick="salvarLote()">➕ Registrar lote</button>
+    </div>
+    <div class="card"><div class="card-title">📦 Lotes registrados</div><div id="p-lotes"><div class="empty">Nenhum lote cadastrado</div></div></div>
+  </div>
+</div>
+
+<!-- RECEITA -->
+<div class="section" id="sec-receita">
+  <div class="card">
+    <div class="card-title">🍯 Geleia de Mocotó — Modo de preparo</div>
+    <div class="card" style="background:#fdf5e8;border:1px solid #e8d5a0;margin-bottom:12px;">
+      <div style="font-size:12px;font-weight:600;color:#7a5020;margin-bottom:6px;">📋 Ingredientes (1 panela)</div>
+      <div class="ing-row"><span class="ing-name">Mocotó</span><span class="ing-qtd">13 kg</span></div>
+      <div class="ing-row"><span class="ing-name">Açúcar</span><span class="ing-qtd">10 a 11 kg</span></div>
+      <div class="ing-row"><span class="ing-name">Açúcar p/ queimar</span><span class="ing-qtd">0,5 kg</span></div>
+      <div class="ing-row"><span class="ing-name">Ácido cítrico</span><span class="ing-qtd">5 colheres</span></div>
+      <div class="ing-row"><span class="ing-name">Sorbato</span><span class="ing-qtd">5 colheres</span></div>
+      <div class="ing-row"><span class="ing-name">Canela em pó</span><span class="ing-qtd">1 colher</span></div>
+      <div class="ing-row"><span class="ing-name">Cravo/canela/erva-doce</span><span class="ing-qtd">A gosto</span></div>
+      <div class="ing-row"><span class="ing-name">Água (liquidificador)</span><span class="ing-qtd">~1 baldinho/batida</span></div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="r-progress" style="width:0%"></div></div>
+    <div class="progress-label" id="r-perc">0 de 10 etapas concluídas</div>
+    <div id="r-steps">
+      <div class="check-item" onclick="toggleStep(0)"><input type="checkbox" id="rs-0" onclick="event.stopPropagation();toggleStep(0)"><div><div class="check-text" id="rl-0">Colocar 13kg de mocotó na panela de pressão com cravo, canela e/ou erva-doce. Cozinhar por 1h15min após ferver.</div><div class="check-timer">⏱ 1h15min</div></div></div>
+      <div class="check-item" onclick="toggleStep(1)"><input type="checkbox" id="rs-1" onclick="event.stopPropagation();toggleStep(1)"><div><div class="check-text" id="rl-1">Queimar 0,5kg de açúcar separadamente para dar cor. Reservar.</div></div></div>
+      <div class="check-item" onclick="toggleStep(2)"><input type="checkbox" id="rs-2" onclick="event.stopPropagation();toggleStep(2)"><div><div class="check-text" id="rl-2">Bater no liquidificador — ~4 batidas, 1 baldinho de água por batida. Deve sobrar mocotó na última peneirada.</div><div class="check-timer">⏱ ~5min</div></div></div>
+      <div class="check-item" onclick="toggleStep(3)"><input type="checkbox" id="rs-3" onclick="event.stopPropagation();toggleStep(3)"><div><div class="check-text" id="rl-3">Posicionar peneira diretamente sobre o tacho e peneirar o mocotó batido direto.</div></div></div>
+      <div class="check-item" onclick="toggleStep(4)"><input type="checkbox" id="rs-4" onclick="event.stopPropagation();toggleStep(4)"><div><div class="check-text" id="rl-4">Adicionar 10 a 11kg de açúcar ao tacho com o mocotó já peneirado.</div></div></div>
+      <div class="check-item" onclick="toggleStep(5)"><input type="checkbox" id="rs-5" onclick="event.stopPropagation();toggleStep(5)"><div><div class="check-text" id="rl-5">Acender o fogo — não pode faltar até o final. Incorporar açúcar queimado enquanto mexe.</div></div></div>
+      <div class="check-item" onclick="toggleStep(6)"><input type="checkbox" id="rs-6" onclick="event.stopPropagation();toggleStep(6)"><div><div class="check-text" id="rl-6">Verificar ponto: tigela com água, mexer 7x no tacho, colher, escorrer, rolar na tigela, passar dedo.</div><div class="check-timer">⏱ ~5min</div></div></div>
+      <div class="check-item" onclick="toggleStep(7)"><input type="checkbox" id="rs-7" onclick="event.stopPropagation();toggleStep(7)"><div><div class="check-text" id="rl-7">Ao encontrar a liga ideal, desligar o fogo e retirar para batimento final.</div></div></div>
+      <div class="check-item" onclick="toggleStep(8)"><input type="checkbox" id="rs-8" onclick="event.stopPropagation();toggleStep(8)"><div><div class="check-text" id="rl-8">Na mudança de cor: adicionar canela, ácido cítrico e sorbato dissolvidos em água.</div></div></div>
+      <div class="check-item" onclick="toggleStep(9)"><input type="checkbox" id="rs-9" onclick="event.stopPropagation();toggleStep(9)"><div><div class="check-text" id="rl-9">Bater na batedeira velocidade média ~5min. Colocar em formas untadas em local seco até o dia seguinte.</div><div class="check-timer">⏱ ~5min + até o dia seguinte</div></div></div>
+    </div>
+    <button class="btn btn-outline" onclick="resetReceita()" style="margin-top:12px">🔄 Reiniciar checklist</button>
+  </div>
+</div>
+
+<!-- CONFIG -->
+<div class="section" id="sec-config">
+  <div class="desktop-cols">
+    <div class="card">
+      <div class="card-title">☁️ Sincronização Google Sheets</div>
+      <label>URL do Google Apps Script</label>
+      <input type="url" id="cfg-url" placeholder="https://script.google.com/macros/s/..." autocomplete="off">
+      <div class="config-url-hint">Cole a URL gerada ao publicar o Apps Script como Web App.</div>
+      <div class="config-status-row"><div class="sync-dot" id="cfg-dot"></div><span id="cfg-status-text" style="font-size:12px;color:#7a6040">Não configurado</span></div>
+      <button class="btn" onclick="salvarConfig()">💾 Salvar configuração</button>
+      <button class="btn btn-outline" onclick="testarConexao()">🔗 Testar conexão</button>
+      <button class="btn btn-green" onclick="sincronizarTudo(true)">☁️ Sincronizar agora</button>
+      <button class="btn btn-amber" onclick="carregarDaNuvem()">⬇️ Carregar dados da nuvem</button>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title">📋 Como configurar</div>
+        <div style="font-size:12px;color:#5a4020;line-height:1.7;">
+          <p style="margin-bottom:6px"><strong>1.</strong> Acesse <a href="https://script.google.com" target="_blank" style="color:#c4922a">script.google.com</a> → Novo projeto</p>
+          <p style="margin-bottom:6px"><strong>2.</strong> Cole o código do arquivo <code>sabores_gas.js</code></p>
+          <p style="margin-bottom:6px"><strong>3.</strong> Implantar → Nova implantação → Aplicativo da Web</p>
+          <p style="margin-bottom:6px"><strong>4.</strong> Acesso: "Qualquer pessoa" → Implantar → Autorizar</p>
+          <p><strong>5.</strong> Copie a URL e cole acima → Salvar → Testar ✅</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">🔒 Privacidade</div>
+        <div style="font-size:12px;color:#7a6040;line-height:1.6;">Dados salvos <strong>na sua conta Google</strong>. Só você tem acesso. Funciona offline e sincroniza quando houver internet.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /content-area -->
+</div><!-- /app-wrapper -->
+
+<!-- MODAIS -->
+<div class="modal-overlay" id="modal-rota" style="display:none">
+  <div class="modal">
+    <div class="modal-title">✏️ Editar rota</div>
+    <input type="hidden" id="edit-rot-idx">
+    <label>Nome da rota</label><input type="text" id="edit-rot-nome">
+    <label>Dia da semana</label>
+    <select id="edit-rot-dia"><option>Sábado</option><option>Domingo</option><option>Segunda</option><option>Terça</option><option>Quarta</option><option>Quinta</option><option>Sexta</option></select>
+    <div class="form-grid">
+      <div><label>Horário início</label><input type="time" id="edit-rot-hora-ini"></div>
+      <div><label>Horário término</label><input type="time" id="edit-rot-hora-fim"></div>
+    </div>
+    <label>Observações</label><textarea id="edit-rot-obs"></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="fecharModal('modal-rota')">Cancelar</button>
+      <button class="btn" onclick="salvarEdicaoRota()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-cliente" style="display:none">
+  <div class="modal">
+    <div class="modal-title">✏️ Editar cliente</div>
+    <input type="hidden" id="edit-cli-idx">
+    <label>Nome / Estabelecimento</label><input type="text" id="edit-cli-nome">
+    <label>Rota</label><select id="edit-cli-rota"></select>
+    <div class="form-grid">
+      <div><label>Telefone / WhatsApp</label><input type="tel" id="edit-cli-tel"></div>
+      <div><label>Tipo de comércio</label>
+        <select id="edit-cli-tipo">
+          <option>Padaria</option><option>Restaurante</option><option>Sacolão / Feira</option>
+          <option>Mercadinho / Mercearia</option><option>Mercado / Mercadão</option><option>Lanchonete</option>
+          <option>Açougue</option><option>Bar</option><option>Empório / Delicatessen</option>
+          <option>Distribuidora</option><option>Casa de Ração</option><option>Outro</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div><label>Bairro</label><input type="text" id="edit-cli-bairro"></div>
+      <div><label>Cidade</label><input type="text" id="edit-cli-cidade"></div>
+    </div>
+    <label>Localização</label><input type="text" id="edit-cli-maps">
+    <label>Pedido habitual</label><input type="text" id="edit-cli-pedido">
+    <label>Observações</label><textarea id="edit-cli-obs"></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="fecharModal('modal-cliente')">Cancelar</button>
+      <button class="btn" onclick="salvarEdicaoCliente()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-visita" style="display:none">
+  <div class="modal">
+    <div class="modal-title">📝 Registrar visita</div>
+    <input type="hidden" id="vis-pro-idx">
+    <label>Data da visita</label><input type="date" id="vis-data">
+    <label>Novo status</label>
+    <select id="vis-status">
+      <option value="A visitar">A visitar</option>
+      <option value="Visitado">Visitado</option>
+      <option value="Proposta feita">Proposta feita</option>
+      <option value="Não tem interesse">Não tem interesse</option>
+    </select>
+    <label>Observações da visita</label><textarea id="vis-obs" placeholder="O que aconteceu na visita?"></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="fecharModal('modal-visita')">Cancelar</button>
+      <button class="btn" onclick="salvarVisita()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const GASOLINA=100;
+const CUSTOS={am30:20,am20:13.40,g60:0.67,g120:1.25,g330:6.00};
+function load(k,def){try{return JSON.parse(localStorage.getItem(k))||def;}catch(e){return def;}}
+function save(k,v){localStorage.setItem(k,JSON.stringify(v));}
+
+let vendas=load('vnd',[]),trocas=load('trc',[]),lotes=load('lts',[]),rotas=load('rts',[]);
+let clientes=load('cls',[]),repasses=load('rps',[]),pagamentos=load('pgs',[]);
+let prospectos=load('prs',[]);
+let tagsAtivas={cli:[],pro:[]};
+
+// SYNC
+let GAS_URL=localStorage.getItem('gas_url')||'';
+let syncTimer=null;
+
+function setSyncStatus(s){
+  const dot=document.getElementById('sync-dot'),txt=document.getElementById('sync-text');
+  const cdot=document.getElementById('cfg-dot'),ctxt=document.getElementById('cfg-status-text');
+  dot.className='sync-dot'+(s!=='off'?' '+s:'');
+  if(cdot)cdot.className='sync-dot'+(s!=='off'?' '+s:'');
+  txt.textContent={ok:'nuvem ✓',err:'erro sync',sync:'sincronizando...',off:'offline'}[s]||s;
+  if(ctxt)ctxt.textContent={ok:'Conectado ✅',err:'Erro de conexão ❌',sync:'Sincronizando...',off:'Não configurado'}[s]||s;
+}
+
+function agendarSync(){if(!GAS_URL)return;clearTimeout(syncTimer);syncTimer=setTimeout(()=>sincronizarTudo(false),1500);}
+
+async function sincronizarTudo(manual=false){
+  if(!GAS_URL){if(manual)showToast('Configure a URL em ⚙️ Config','error');return;}
+  setSyncStatus('sync');
+  try{
+    const res=await fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'saveAll',data:{vendas,trocas,lotes,rotas,clientes,repasses,pagamentos,prospectos}})});
+    const j=await res.json();
+    if(j.ok){setSyncStatus('ok');if(manual)showToast('Sincronizado ✅','success');}
+    else{setSyncStatus('err');if(manual)showToast('Erro: '+(j.error||'tente novamente'),'error');}
+  }catch(e){setSyncStatus('err');if(manual)showToast('Sem conexão — dados salvos localmente','error');}
+}
+
+async function carregarDaNuvem(){
+  if(!GAS_URL){showToast('Configure a URL primeiro','error');return;}
+  setSyncStatus('sync');
+  try{
+    const res=await fetch(GAS_URL+'?action=loadAll');
+    const j=await res.json();
+    if(j.ok&&j.data){
+      const d=j.data;
+      vendas=d.vendas||vendas;trocas=d.trocas||trocas;lotes=d.lotes||lotes;rotas=d.rotas||rotas;
+      clientes=d.clientes||clientes;repasses=d.repasses||repasses;pagamentos=d.pagamentos||pagamentos;
+      prospectos=d.prospectos||prospectos;
+      ['vnd','trc','lts','rts','cls','rps','pgs','prs'].forEach((k,i)=>save(k,[vendas,trocas,lotes,rotas,clientes,repasses,pagamentos,prospectos][i]));
+      setSyncStatus('ok');updateDashboard();populateRotaSelects();showToast('Dados carregados ✅','success');
+    }else{setSyncStatus('err');showToast('Nenhum dado encontrado na nuvem','error');}
+  }catch(e){setSyncStatus('err');showToast('Erro ao carregar da nuvem','error');}
+}
+
+async function testarConexao(){
+  const url=document.getElementById('cfg-url').value.trim();
+  if(!url){showToast('Insira a URL primeiro','error');return;}
+  setSyncStatus('sync');
+  try{
+    const res=await fetch(url+'?action=ping');const j=await res.json();
+    if(j.ok){setSyncStatus('ok');showToast('Conexão OK! ✅','success');}
+    else{setSyncStatus('err');showToast('Erro na resposta','error');}
+  }catch(e){setSyncStatus('err');showToast('Não foi possível conectar','error');}
+}
+
+function salvarConfig(){
+  const url=document.getElementById('cfg-url').value.trim();
+  if(!url){showToast('Insira a URL','error');return;}
+  GAS_URL=url;localStorage.setItem('gas_url',url);
+  document.getElementById('config-banner').style.display='none';
+  showToast('Configuração salva!','success');setSyncStatus('ok');
+}
+
+function showToast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast show'+(type?' '+type:'');
+  setTimeout(()=>t.className='toast',3000);
+}
+function fmt(n){return'R$ '+parseFloat(n||0).toFixed(2).replace('.',',');}
+function mesAtual(){return new Date().toISOString().slice(0,7);}
+
+// NAV
+function showSection(s){
+  document.querySelectorAll('.section').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(el=>el.classList.remove('active'));
+  document.getElementById('sec-'+s).classList.add('active');
+  document.querySelector('[data-s="'+s+'"]').classList.add('active');
+  if(s==='dashboard')updateDashboard();
+  if(s==='producao')renderLotes();
+  if(s==='rotas'){populateRotaSelects();renderRotas();}
+  if(s==='clientes'){populateRotaSelects();renderClientes();renderTagFiltros('cli');}
+  if(s==='prospecao'){populateRotaSelects();renderProspectos();}
+  if(s==='repasse'){renderRepasse();renderPagamentos();}
+  if(s==='vendas')populateRotaSelects();
+  if(s==='config')document.getElementById('cfg-url').value=GAS_URL;
+}
+
+function showTab(id,el){
+  const parent=el?el.closest('.section'):document.querySelector('.section.active');
+  parent.querySelectorAll('.subtab').forEach(e=>e.classList.remove('active'));
+  parent.querySelectorAll('.tab').forEach(e=>e.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if(el)el.classList.add('active');
+  if(id==='t-historico')renderHistorico();
+  if(id==='t-trocas')renderTrocas();
+  if(id==='rot-lista')renderRotas();
+  if(id==='cli-lista'){renderClientes();renderTagFiltros('cli');}
+  if(id==='pro-lista')renderProspectos();
+  if(id==='rep-pagamentos')renderPagamentos();
+  if(id==='rep-resumo')renderRepasse();
+}
+
+function populateRotaSelects(){
+  ['v-rota','tr-rota','cli-rota','cli-filtro','pro-rota','edit-cli-rota'].forEach(id=>{
+    const sel=document.getElementById(id);if(!sel)return;
+    const val=sel.value,isF=(id==='cli-filtro');
+    sel.innerHTML=isF?'<option value="">Todas as rotas</option>':'<option value="">Selecione a rota...</option>';
+    rotas.forEach(r=>{const o=document.createElement('option');o.value=r.nome;o.textContent=r.nome+' ('+r.dia+')';sel.appendChild(o);});
+    if(val)sel.value=val;
+  });
+}
+
+function populateClienteSelect(rotaId,selId){
+  const sel=document.getElementById(selId);if(!sel)return;
+  sel.innerHTML='<option value="">Selecione o cliente...</option>';
+  clientes.filter(c=>!rotaId||c.rota===rotaId).forEach(c=>{const o=document.createElement('option');o.value=c.nome;o.textContent=c.nome;sel.appendChild(o);});
+}
+document.getElementById('v-rota').addEventListener('change',function(){populateClienteSelect(this.value,'v-cliente');});
+document.getElementById('tr-rota').addEventListener('change',function(){populateClienteSelect(this.value,'tr-cliente');});
+
+// MODAIS
+function abrirModal(id){document.getElementById(id).style.display='flex';}
+function fecharModal(id){document.getElementById(id).style.display='none';}
+
+// VENDAS
+function autoCalc(){
+  const am30=parseInt(document.getElementById('v-am30').value)||0,am20=parseInt(document.getElementById('v-am20').value)||0;
+  const g330=parseInt(document.getElementById('v-330').value)||0,g120=parseInt(document.getElementById('v-120').value)||0;
+  if(!am30&&!am20&&!g330&&!g120){document.getElementById('v-preview').style.display='none';return;}
+  const bruta=(am30*50)+(am20*32),custo=(am30*CUSTOS.am30)+(am20*CUSTOS.am20)+(g330*CUSTOS.g330)+(g120*CUSTOS.g120);
+  document.getElementById('v-prev-bruta').textContent=fmt(bruta);
+  document.getElementById('v-prev-custo').textContent='- '+fmt(custo);
+  document.getElementById('v-prev-lucro').textContent=fmt(bruta-custo-GASOLINA);
+  document.getElementById('v-preview').style.display='block';
+}
+
+function salvarVenda(){
+  const data=document.getElementById('v-data').value;
+  const am30=parseInt(document.getElementById('v-am30').value)||0,am20=parseInt(document.getElementById('v-am20').value)||0;
+  const g330=parseInt(document.getElementById('v-330').value)||0,g120=parseInt(document.getElementById('v-120').value)||0;
+  const rota=document.getElementById('v-rota').value,cliente=document.getElementById('v-cliente').value;
+  if(!data){showToast('Informe a data','error');return;}
+  if(!am30&&!am20&&!g330&&!g120){showToast('Informe pelo menos um produto','error');return;}
+  const bruta=(am30*50)+(am20*32),custo=(am30*CUSTOS.am30)+(am20*CUSTOS.am20)+(g330*CUSTOS.g330)+(g120*CUSTOS.g120);
+  const lucro=bruta-custo-GASOLINA;
+  vendas.unshift({data,am30,am20,g330,g120,bruta,custo,lucro,rota,cliente});
+  repasses.unshift({data,tipo:'Venda',valor:custo,desc:`${am30} am30 · ${am20} am20 · ${g330} un330 · ${g120} un120`});
+  save('vnd',vendas);save('rps',repasses);
+  ['v-am30','v-am20','v-330','v-120'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('v-preview').style.display='none';
+  showToast('Venda salva! ✅','success');renderHistorico();updateDashboard();agendarSync();
+}
+
+function renderHistorico(){
+  const el=document.getElementById('v-historico-list');
+  if(!vendas.length){el.innerHTML='<div class="empty">Nenhuma venda registrada</div>';return;}
+  el.innerHTML=vendas.map(v=>`<div class="list-item"><div><div class="list-label">${v.data}</div><div class="list-sub">${v.rota||'Sem rota'}${v.cliente?' · '+v.cliente:''}</div><div class="list-sub">${v.am30} am30 · ${v.am20} am20${v.g330?' · '+v.g330+' un330':''}${v.g120?' · '+v.g120+' un120':''}</div></div><div style="text-align:right"><div class="list-value green">${fmt(v.lucro)}</div><div class="list-sub">${fmt(v.bruta)} bruto</div></div></div>`).join('');
+}
+
+// TROCAS
+function calcTroca(){
+  const g60=parseInt(document.getElementById('tr-60').value)||0,g120=parseInt(document.getElementById('tr-120').value)||0,g330=parseInt(document.getElementById('tr-330').value)||0;
+  if(!g60&&!g120&&!g330){document.getElementById('tr-preview').style.display='none';return;}
+  const total=(g60*CUSTOS.g60)+(g120*CUSTOS.g120)+(g330*CUSTOS.g330),metade=total/2;
+  document.getElementById('tr-prev-total').textContent=fmt(total);
+  document.getElementById('tr-prev-prej').textContent='- '+fmt(metade);
+  document.getElementById('tr-prev-rep').textContent='- '+fmt(metade);
+  document.getElementById('tr-prev-qtd').textContent=(g60+g120+g330)+' un.';
+  document.getElementById('tr-preview').style.display='block';
+}
+
+function salvarTroca(){
+  const data=document.getElementById('tr-data').value;
+  const g60=parseInt(document.getElementById('tr-60').value)||0,g120=parseInt(document.getElementById('tr-120').value)||0,g330=parseInt(document.getElementById('tr-330').value)||0;
+  const rota=document.getElementById('tr-rota').value,cliente=document.getElementById('tr-cliente').value,motivo=document.getElementById('tr-motivo').value;
+  if(!data){showToast('Informe a data','error');return;}
+  if(!g60&&!g120&&!g330){showToast('Informe pelo menos um produto','error');return;}
+  const custoTotal=(g60*CUSTOS.g60)+(g120*CUSTOS.g120)+(g330*CUSTOS.g330),repasse=custoTotal/2;
+  trocas.unshift({data,g60,g120,g330,custoTotal,prej:repasse,rota,cliente,motivo});
+  repasses.unshift({data,tipo:'Troca',valor:repasse,desc:`${g60} un60 · ${g120} un120 · ${g330} un330 — ${motivo||'sem motivo'}`});
+  save('trc',trocas);save('rps',repasses);
+  ['tr-60','tr-120','tr-330','tr-motivo'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('tr-preview').style.display='none';
+  showToast('Troca registrada! Repasse de '+fmt(repasse),'error');
+  renderTrocas();updateDashboard();agendarSync();
+}
+
+function renderTrocas(){
+  const el=document.getElementById('tr-lista');
+  if(!trocas.length){el.innerHTML='<div class="empty">Nenhuma troca registrada</div>';return;}
+  el.innerHTML=trocas.map(t=>`<div class="troca-item"><div class="troca-header"><span>${t.data} · ${t.rota||'Sem rota'}</span><span>Repasse: - ${fmt(t.prej)}</span></div><div class="troca-info">${t.cliente||''} · ${t.g60} un60 · ${t.g120} un120 · ${t.g330} un330${t.motivo?' · '+t.motivo:''}</div><div class="troca-info">Custo total: ${fmt(t.custoTotal||t.prej*2)} — sua parte: ${fmt(t.prej)}</div></div>`).join('');
+}
+
+// ROTAS
+function salvarRota(){
+  const nome=document.getElementById('rot-nome').value.trim(),dia=document.getElementById('rot-dia').value;
+  const ini=document.getElementById('rot-hora-ini').value,fim=document.getElementById('rot-hora-fim').value;
+  const obs=document.getElementById('rot-obs').value;
+  if(!nome){showToast('Informe o nome da rota','error');return;}
+  rotas.push({nome,dia,hora:ini,horaFim:fim,obs});save('rts',rotas);
+  document.getElementById('rot-nome').value='';document.getElementById('rot-hora-ini').value='';document.getElementById('rot-hora-fim').value='';document.getElementById('rot-obs').value='';
+  populateRotaSelects();renderRotas();showToast('Rota salva! ✅','success');agendarSync();
+}
+
+function editarRota(i){
+  const r=rotas[i];
+  document.getElementById('edit-rot-idx').value=i;
+  document.getElementById('edit-rot-nome').value=r.nome;
+  document.getElementById('edit-rot-dia').value=r.dia;
+  document.getElementById('edit-rot-hora-ini').value=r.hora||'';
+  document.getElementById('edit-rot-hora-fim').value=r.horaFim||'';
+  document.getElementById('edit-rot-obs').value=r.obs||'';
+  abrirModal('modal-rota');
+}
+
+function salvarEdicaoRota(){
+  const i=parseInt(document.getElementById('edit-rot-idx').value);
+  rotas[i]={
+    nome:document.getElementById('edit-rot-nome').value.trim(),
+    dia:document.getElementById('edit-rot-dia').value,
+    hora:document.getElementById('edit-rot-hora-ini').value,
+    horaFim:document.getElementById('edit-rot-hora-fim').value,
+    obs:document.getElementById('edit-rot-obs').value
+  };
+  save('rts',rotas);fecharModal('modal-rota');
+  populateRotaSelects();renderRotas();showToast('Rota atualizada! ✅','success');agendarSync();
+}
+
+function renderRotas(){
+  const el=document.getElementById('rot-cards');
+  if(!rotas.length){el.innerHTML='<div class="empty">Nenhuma rota cadastrada</div>';return;}
+  el.innerHTML=rotas.map((r,i)=>{
+    const clis=clientes.filter(c=>c.rota===r.nome).length;
+    let dur='';
+    if(r.hora&&r.horaFim){const[h1,m1]=r.hora.split(':').map(Number),[h2,m2]=r.horaFim.split(':').map(Number);const m=(h2*60+m2)-(h1*60+m1);if(m>0)dur=` · ${Math.floor(m/60)}h${m%60?m%60+'min':''}`;}
+    return`<div class="rota-card"><div class="rota-header"><div class="rota-nome">${r.nome}</div><span class="badge badge-blue">${r.dia}</span></div>${(r.hora||r.horaFim)?`<div class="rota-info">⏰ ${r.hora||'?'} → ${r.horaFim||'?'}${dur}</div>`:''}<div class="rota-clientes">👥 ${clis} cliente(s)</div>${r.obs?`<div class="rota-info">${r.obs}</div>`:''}<div style="margin-top:8px"><button class="btn-action btn-edit" onclick="editarRota(${i})">✏️ Editar</button></div></div>`;
+  }).join('');
+}
+
+// TAGS
+function addTag(ctx){
+  const inp=document.getElementById(ctx+'-tag-input'),val=inp.value.trim().toLowerCase();
+  if(!val||tagsAtivas[ctx].includes(val)){inp.value='';return;}
+  tagsAtivas[ctx].push(val);inp.value='';renderTagsContainer(ctx);
+}
+function removeTag(ctx,t){tagsAtivas[ctx]=tagsAtivas[ctx].filter(x=>x!==t);renderTagsContainer(ctx);}
+function renderTagsContainer(ctx){
+  document.getElementById(ctx+'-tags-container').innerHTML=tagsAtivas[ctx].map(t=>`<span class="tag-chip">${t}<span class="tag-remove" onclick="removeTag('${ctx}','${t}')">×</span></span>`).join('');
+}
+let tagFiltroAtivo={cli:''};
+function filtrarTag(ctx,tag,el){
+  tagFiltroAtivo[ctx]=tag;
+  document.querySelectorAll('#cli-tag-filtros .tag-filter-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');renderClientes();
+}
+function renderTagFiltros(ctx){
+  const all=[...new Set(clientes.flatMap(c=>c.tags||[]))];
+  document.getElementById('cli-tag-filtros').innerHTML=`<span class="tag-filter-chip ${!tagFiltroAtivo.cli?'active':''}" onclick="filtrarTag('cli','',this)">Todos</span>`+all.map(t=>`<span class="tag-filter-chip ${tagFiltroAtivo.cli===t?'active':''}" onclick="filtrarTag('cli','${t}',this)">${t}</span>`).join('');
+}
+
+// CLIENTES
+function salvarCliente(){
+  const nome=document.getElementById('cli-nome').value.trim(),rota=document.getElementById('cli-rota').value;
+  if(!nome){showToast('Informe o nome','error');return;}
+  if(!rota){showToast('Selecione a rota','error');return;}
+  clientes.push({
+    nome,rota,tel:document.getElementById('cli-tel').value,tipo:document.getElementById('cli-tipo').value,
+    bairro:document.getElementById('cli-bairro').value,cidade:document.getElementById('cli-cidade').value,
+    maps:document.getElementById('cli-maps').value.trim(),pedido:document.getElementById('cli-pedido').value,
+    obs:document.getElementById('cli-obs').value,tags:[...tagsAtivas.cli]
+  });
+  save('cls',clientes);
+  ['cli-nome','cli-tel','cli-bairro','cli-cidade','cli-maps','cli-pedido','cli-obs'].forEach(id=>document.getElementById(id).value='');
+  tagsAtivas.cli=[];renderTagsContainer('cli');renderClientes();renderRotas();renderTagFiltros('cli');
+  showToast('Cliente salvo! ✅','success');agendarSync();
+}
+
+function editarCliente(i){
+  const c=clientes[i];
+  document.getElementById('edit-cli-idx').value=i;
+  document.getElementById('edit-cli-nome').value=c.nome;
+  document.getElementById('edit-cli-tel').value=c.tel||'';
+  document.getElementById('edit-cli-tipo').value=c.tipo||'Outro';
+  document.getElementById('edit-cli-bairro').value=c.bairro||c.end||'';
+  document.getElementById('edit-cli-cidade').value=c.cidade||'';
+  document.getElementById('edit-cli-maps').value=c.maps||'';
+  document.getElementById('edit-cli-pedido').value=c.pedido||'';
+  document.getElementById('edit-cli-obs').value=c.obs||'';
+  populateRotaSelects();
+  setTimeout(()=>{document.getElementById('edit-cli-rota').value=c.rota||'';},50);
+  abrirModal('modal-cliente');
+}
+
+function salvarEdicaoCliente(){
+  const i=parseInt(document.getElementById('edit-cli-idx').value);
+  const tags=clientes[i].tags||[];
+  clientes[i]={
+    ...clientes[i],
+    nome:document.getElementById('edit-cli-nome').value.trim(),
+    rota:document.getElementById('edit-cli-rota').value,
+    tel:document.getElementById('edit-cli-tel').value,
+    tipo:document.getElementById('edit-cli-tipo').value,
+    bairro:document.getElementById('edit-cli-bairro').value,
+    cidade:document.getElementById('edit-cli-cidade').value,
+    maps:document.getElementById('edit-cli-maps').value,
+    pedido:document.getElementById('edit-cli-pedido').value,
+    obs:document.getElementById('edit-cli-obs').value,
+    tags
+  };
+  save('cls',clientes);fecharModal('modal-cliente');
+  renderClientes();renderRotas();showToast('Cliente atualizado! ✅','success');agendarSync();
+}
+
+function abrirMaps(maps,bairro,cidade){
+  const q=maps||(bairro?bairro+', '+(cidade||''):'');
+  if(!q.trim()){showToast('Sem localização cadastrada','error');return;}
+  window.open(q.startsWith('http')?q:'https://maps.google.com/?q='+encodeURIComponent(q),'_blank');
+}
+
+function abrirWhatsApp(tel){
+  if(!tel){showToast('Sem telefone cadastrado','error');return;}
+  const num=tel.replace(/\D/g,'');
+  window.open('https://wa.me/55'+num,'_blank');
+}
+
+function ligar(tel){
+  if(!tel){showToast('Sem telefone cadastrado','error');return;}
+  window.open('tel:'+tel);
+}
+
+function renderClientes(){
+  const fRota=document.getElementById('cli-filtro').value;
+  let lista=fRota?clientes.filter(c=>c.rota===fRota):clientes;
+  if(tagFiltroAtivo.cli)lista=lista.filter(c=>(c.tags||[]).includes(tagFiltroAtivo.cli));
+  const el=document.getElementById('cli-cards');
+  if(!lista.length){el.innerHTML='<div class="empty">Nenhum cliente encontrado</div>';return;}
+  el.innerHTML=lista.map((c,i)=>{
+    const idx=clientes.indexOf(c);
+    const loc=c.maps||c.bairro||c.end||'';
+    return`<div class="cliente-card"><div class="cliente-header"><div><div class="cliente-nome">${c.nome}</div><div class="cliente-info">${c.tipo||''} · ${c.rota}</div>${c.bairro?`<div class="cliente-info">📍 ${c.bairro}${c.cidade?', '+c.cidade:''}</div>`:''}</div><span class="badge badge-blue">${c.rota}</span></div>${c.tags&&c.tags.length?`<div class="cliente-tags">${c.tags.map(t=>`<span class="badge badge-purple">${t}</span>`).join('')}</div>`:''} ${c.pedido?`<div class="cliente-info">🛒 ${c.pedido}</div>`:''}${c.obs?`<div class="cliente-info">💬 ${c.obs}</div>`:''}<div class="cliente-actions">${c.tel?`<button class="btn-action btn-whats" onclick="abrirWhatsApp('${c.tel}')">💬 WhatsApp</button><button class="btn-action btn-call" onclick="ligar('${c.tel}')">📞 Ligar</button>`:''}${loc?`<button class="btn-action btn-maps" onclick="abrirMaps('${(c.maps||'').replace(/'/g,"\\'")}','${(c.bairro||c.end||'').replace(/'/g,"\\'")}','${(c.cidade||'').replace(/'/g,"\\'")}')">📍 Maps</button>`:''}<button class="btn-action btn-edit" onclick="editarCliente(${idx})">✏️ Editar</button></div></div>`;
+  }).join('');
+}
+
+// PROSPECÇÃO
+let proFiltroAtivo='';
+function filtrarProspecto(status,el){
+  proFiltroAtivo=status;
+  document.querySelectorAll('#pro-status-filtros .tag-filter-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');renderProspectos();
+}
+
+function salvarProspecto(){
+  const nome=document.getElementById('pro-nome').value.trim();
+  if(!nome){showToast('Informe o nome','error');return;}
+  prospectos.unshift({
+    nome,tel:document.getElementById('pro-tel').value,tipo:document.getElementById('pro-tipo').value,
+    bairro:document.getElementById('pro-bairro').value,cidade:document.getElementById('pro-cidade').value,
+    maps:document.getElementById('pro-maps').value.trim(),rota:document.getElementById('pro-rota').value,
+    status:document.getElementById('pro-status').value,
+    dataVisita:document.getElementById('pro-data-visita').value,
+    obs:document.getElementById('pro-obs').value,
+    visitas:[]
+  });
+  save('prs',prospectos);
+  ['pro-nome','pro-tel','pro-bairro','pro-cidade','pro-maps','pro-obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('pro-data-visita').value='';
+  renderProspectos();updateDashboard();showToast('Prospecto salvo! ✅','success');agendarSync();
+}
+
+function abrirModalVisita(i){
+  document.getElementById('vis-pro-idx').value=i;
+  document.getElementById('vis-data').value=new Date().toISOString().split('T')[0];
+  document.getElementById('vis-status').value=prospectos[i].status||'Visitado';
+  document.getElementById('vis-obs').value='';
+  abrirModal('modal-visita');
+}
+
+function salvarVisita(){
+  const i=parseInt(document.getElementById('vis-pro-idx').value);
+  const data=document.getElementById('vis-data').value;
+  const status=document.getElementById('vis-status').value;
+  const obs=document.getElementById('vis-obs').value;
+  if(!data){showToast('Informe a data','error');return;}
+  prospectos[i].status=status;
+  if(!prospectos[i].visitas)prospectos[i].visitas=[];
+  prospectos[i].visitas.unshift({data,status,obs});
+  save('prs',prospectos);fecharModal('modal-visita');
+  renderProspectos();updateDashboard();showToast('Visita registrada! ✅','success');agendarSync();
+}
+
+function converterEmCliente(i){
+  const p=prospectos[i];
+  if(!confirm(`Converter "${p.nome}" em cliente?`))return;
+  clientes.push({
+    nome:p.nome,rota:p.rota||'',tel:p.tel||'',tipo:p.tipo||'Outro',
+    bairro:p.bairro||'',cidade:p.cidade||'',maps:p.maps||'',
+    pedido:'',obs:p.obs||'',tags:[]
+  });
+  prospectos[i].status='Virou cliente';
+  save('cls',clientes);save('prs',prospectos);
+  renderProspectos();updateDashboard();showToast(p.nome+' convertido em cliente! 🎉','success');agendarSync();
+}
+
+const statusBadge={
+  'A visitar':'badge-amber','Visitado':'badge-blue','Proposta feita':'badge-purple',
+  'Não tem interesse':'badge-gray','Virou cliente':'badge-green'
+};
+
+function renderProspectos(){
+  let lista=proFiltroAtivo?prospectos.filter(p=>p.status===proFiltroAtivo):prospectos;
+  const el=document.getElementById('pro-cards');
+  if(!lista.length){el.innerHTML='<div class="empty">Nenhum prospecto encontrado</div>';return;}
+  el.innerHTML=lista.map((p,li)=>{
+    const i=prospectos.indexOf(p);
+    const ult=p.visitas&&p.visitas.length?p.visitas[0]:null;
+    const loc=p.maps||p.bairro||'';
+    return`<div class="prosp-card"><div class="prosp-header"><div><div class="prosp-nome">${p.nome}</div><div class="prosp-info">${p.tipo||''} · ${p.bairro||''}${p.cidade?', '+p.cidade:''}</div>${p.rota?`<div class="prosp-info">🗺️ ${p.rota}</div>`:''}</div><span class="badge ${statusBadge[p.status]||'badge-gray'}">${p.status}</span></div>${p.dataVisita?`<div class="prosp-info" style="margin-top:4px">📅 Visita prevista: ${p.dataVisita}</div>`:''}${ult?`<div class="visita-item" style="margin-top:8px"><div class="visita-data">Última visita: ${ult.data}</div>${ult.obs?`<div>${ult.obs}</div>`:''}</div>`:''}${p.obs?`<div class="prosp-info">💬 ${p.obs}</div>`:''}<div class="prosp-actions">${p.tel?`<button class="btn-action btn-whats" onclick="abrirWhatsApp('${p.tel}')">💬 WhatsApp</button><button class="btn-action btn-call" onclick="ligar('${p.tel}')">📞 Ligar</button>`:''}${loc?`<button class="btn-action btn-maps" onclick="abrirMaps('${(p.maps||'').replace(/'/g,"\\'")}','${(p.bairro||'').replace(/'/g,"\\'")}','${(p.cidade||'').replace(/'/g,"\\'")}')">📍 Maps</button>`:''}<button class="btn-action btn-edit" onclick="abrirModalVisita(${i})">📝 Visita</button>${p.status!=='Virou cliente'?`<button class="btn-action btn-conv" onclick="converterEmCliente(${i})">✅ Cliente</button>`:''}</div></div>`;
+  }).join('');
+}
+
+// REPASSE
+function calcRepasse(){
+  const g60=parseInt(document.getElementById('rep-60').value)||0,g120=parseInt(document.getElementById('rep-120').value)||0;
+  const g330=parseInt(document.getElementById('rep-330').value)||0,am30=parseInt(document.getElementById('rep-am30').value)||0,am20=parseInt(document.getElementById('rep-am20').value)||0;
+  if(!g60&&!g120&&!g330&&!am30&&!am20){document.getElementById('rep-preview').style.display='none';return;}
+  const v60=g60*CUSTOS.g60,v120=g120*CUSTOS.g120,v330=g330*CUSTOS.g330,va30=am30*CUSTOS.am30,va20=am20*CUSTOS.am20,tot=v60+v120+v330+va30+va20;
+  document.getElementById('rp-60').textContent=g60?fmt(v60):'-';document.getElementById('rp-120').textContent=g120?fmt(v120):'-';
+  document.getElementById('rp-330').textContent=g330?fmt(v330):'-';document.getElementById('rp-am30').textContent=am30?fmt(va30):'-';
+  document.getElementById('rp-am20').textContent=am20?fmt(va20):'-';document.getElementById('rp-total').textContent=fmt(tot);
+  document.getElementById('rep-preview').style.display='block';
+}
+
+function salvarRepasse(){
+  const g60=parseInt(document.getElementById('rep-60').value)||0,g120=parseInt(document.getElementById('rep-120').value)||0;
+  const g330=parseInt(document.getElementById('rep-330').value)||0,am30=parseInt(document.getElementById('rep-am30').value)||0,am20=parseInt(document.getElementById('rep-am20').value)||0;
+  if(!g60&&!g120&&!g330&&!am30&&!am20){showToast('Informe pelo menos um produto','error');return;}
+  const total=(g60*CUSTOS.g60)+(g120*CUSTOS.g120)+(g330*CUSTOS.g330)+(am30*CUSTOS.am30)+(am20*CUSTOS.am20);
+  const hoje=new Date().toISOString().split('T')[0];
+  repasses.unshift({data:hoje,tipo:'Manual',valor:total,desc:`${g60} un60 · ${g120} un120 · ${g330} un330 · ${am30} am30 · ${am20} am20`});
+  save('rps',repasses);['rep-60','rep-120','rep-330','rep-am30','rep-am20'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('rep-preview').style.display='none';
+  renderRepasse();showToast('Repasse de '+fmt(total)+' adicionado!','success');agendarSync();
+}
+
+function renderRepasse(){
+  const dev=repasses.reduce((s,r)=>s+(r.valor||0),0),pago=pagamentos.reduce((s,p)=>s+(p.valor||0),0),saldo=dev-pago;
+  const el=document.getElementById('rep-saldo');el.textContent=fmt(saldo);el.className='saldo-value'+(saldo<=0?' pago':'');
+  const dr=document.getElementById('d-repasse');if(dr)dr.textContent=fmt(Math.max(0,saldo));
+  const lista=document.getElementById('rep-lista');
+  if(!repasses.length){lista.innerHTML='<div class="empty">Nenhum repasse registrado</div>';return;}
+  lista.innerHTML=repasses.slice(0,10).map(r=>`<div class="repasse-row"><div><div class="list-label">${r.data} · <span class="badge ${r.tipo==='Troca'?'badge-red':'badge-amber'}">${r.tipo}</span></div><div class="list-sub">${r.desc}</div></div><div class="list-value red">- ${fmt(r.valor)}</div></div>`).join('');
+}
+
+function salvarPagamento(){
+  const data=document.getElementById('pag-data').value,valor=parseFloat(document.getElementById('pag-valor').value)||0,obs=document.getElementById('pag-obs').value;
+  if(!data||!valor){showToast('Informe data e valor','error');return;}
+  pagamentos.unshift({data,valor,obs});save('pgs',pagamentos);
+  document.getElementById('pag-valor').value='';document.getElementById('pag-obs').value='';
+  renderRepasse();renderPagamentos();showToast('Pagamento de '+fmt(valor)+' registrado! ✅','success');agendarSync();
+}
+
+function renderPagamentos(){
+  const el=document.getElementById('pag-lista');
+  if(!pagamentos.length){el.innerHTML='<div class="empty">Nenhum pagamento registrado</div>';return;}
+  el.innerHTML=pagamentos.map(p=>`<div class="list-item"><div><div class="list-label">${p.data}</div><div class="list-sub">${p.obs||''}</div></div><div class="list-value green">${fmt(p.valor)}</div></div>`).join('');
+}
+
+// PRODUÇÃO
+function salvarLote(){
+  const data=document.getElementById('p-data').value,qtd=parseInt(document.getElementById('p-qtd').value)||0;
+  const tam=document.getElementById('p-tam').value,obs=document.getElementById('p-obs').value;
+  if(!data||!qtd){showToast('Preencha data e quantidade','error');return;}
+  lotes.unshift({data,qtd,tam,obs});save('lts',lotes);
+  document.getElementById('p-qtd').value='';document.getElementById('p-obs').value='';
+  renderLotes();showToast('Lote registrado! ✅','success');agendarSync();
+}
+
+function renderLotes(){
+  const el=document.getElementById('p-lotes');
+  if(!lotes.length){el.innerHTML='<div class="empty">Nenhum lote cadastrado</div>';return;}
+  const hoje=new Date();
+  el.innerHTML=lotes.map(l=>{
+    const dias=Math.ceil((new Date(new Date(l.data).getTime()+60*86400000)-hoje)/86400000);
+    const cls=dias<=3?'badge-red':dias<=10?'badge-amber':'badge-green';
+    return`<div class="list-item"><div><div class="list-label">${l.qtd} un. · ${l.tam}</div><div class="list-sub">Fab: ${l.data}${l.obs?' · '+l.obs:''}</div></div><span class="badge ${cls}">${dias>=0?dias+'d':'Vencido'}</span></div>`;
+  }).join('');
+}
+
+// RECEITA
+function toggleStep(i){
+  const cb=document.getElementById('rs-'+i),lb=document.getElementById('rl-'+i);
+  cb.checked=!cb.checked;lb.classList.toggle('done',cb.checked);
+  const done=Array.from({length:10},(_,j)=>document.getElementById('rs-'+j).checked).filter(Boolean).length;
+  document.getElementById('r-progress').style.width=(done*10)+'%';
+  document.getElementById('r-perc').textContent=done+' de 10 etapas concluídas';
+}
+function resetReceita(){
+  for(let i=0;i<10;i++){document.getElementById('rs-'+i).checked=false;document.getElementById('rl-'+i).classList.remove('done');}
+  document.getElementById('r-progress').style.width='0%';document.getElementById('r-perc').textContent='0 de 10 etapas concluídas';
+}
+
+// DASHBOARD
+function updateDashboard(){
+  const mes=mesAtual();
+  const u=vendas[0];
+  document.getElementById('d-lucro').textContent=u?fmt(u.lucro):'R$ 0';
+  document.getElementById('d-receita').textContent=u?fmt(u.bruta):'R$ 0';
+  const lucroMes=vendas.filter(v=>v.data&&v.data.startsWith(mes)).reduce((s,v)=>s+(v.lucro||0),0);
+  document.getElementById('d-lucro-mes').textContent=fmt(lucroMes);
+  const dev=repasses.reduce((s,r)=>s+(r.valor||0),0),pago=pagamentos.reduce((s,p)=>s+(p.valor||0),0);
+  document.getElementById('d-repasse').textContent=fmt(Math.max(0,dev-pago));
+  document.getElementById('d-clientes').textContent=clientes.length;
+  const prosAtivos=prospectos.filter(p=>p.status!=='Não tem interesse'&&p.status!=='Virou cliente').length;
+  document.getElementById('d-prospectos').textContent=prosAtivos;
+  const perdasMes=trocas.filter(t=>t.data&&t.data.startsWith(mes)).reduce((s,t)=>s+(t.prej||0),0);
+  document.getElementById('d-perdas').textContent=fmt(perdasMes);
+
+  document.getElementById('d-historico').innerHTML=vendas.length?vendas.slice(0,3).map(v=>`<div class="list-item"><div><div class="list-label">${v.data}</div><div class="list-sub">${v.rota||'Sem rota'}</div></div><div class="list-value green">${fmt(v.lucro)}</div></div>`).join(''):'<div class="empty">Nenhuma venda registrada ainda</div>';
+  document.getElementById('d-trocas').innerHTML=trocas.length?trocas.slice(0,3).map(t=>`<div class="list-item"><div><div class="list-label">${t.data} · ${t.rota||'Sem rota'}</div><div class="list-sub">${t.cliente||''}</div></div><div class="list-value red">- ${fmt(t.prej)}</div></div>`).join(''):'<div class="empty">Nenhuma troca registrada</div>';
+
+  const hoje=new Date(),prox=lotes.filter(l=>{const d=Math.ceil((new Date(new Date(l.data).getTime()+60*86400000)-hoje)/86400000);return d>=0&&d<=10;});
+  document.getElementById('d-validade').innerHTML=prox.length?prox.map(l=>{const d=Math.ceil((new Date(new Date(l.data).getTime()+60*86400000)-hoje)/86400000);return`<div class="list-item"><div><div class="list-label">${l.qtd} geleias ${l.tam}</div><div class="list-sub">Fab: ${l.data}</div></div><span class="badge ${d<=3?'badge-red':'badge-amber'}">${d}d</span></div>`;}).join(''):'<div class="empty">Nenhum lote com validade próxima</div>';
+
+  const paraVisitar=prospectos.filter(p=>p.status==='A visitar').slice(0,3);
+  document.getElementById('d-prospectos-lista').innerHTML=paraVisitar.length?paraVisitar.map(p=>`<div class="list-item"><div><div class="list-label">${p.nome}</div><div class="list-sub">${p.tipo||''} · ${p.bairro||''}${p.cidade?', '+p.cidade:''}</div></div><span class="badge badge-amber">A visitar</span></div>`).join(''):'<div class="empty">Nenhum prospecto pendente</div>';
+}
+
+// BACKUP
+function exportarDados(){
+  const blob=new Blob([JSON.stringify({vendas,trocas,lotes,rotas,clientes,repasses,pagamentos,prospectos,exportado:new Date().toISOString()},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='sabores_backup_'+new Date().toISOString().split('T')[0]+'.json';a.click();
+  showToast('Backup exportado!','success');
+}
+
+// INIT
+const hj=new Date().toISOString().split('T')[0];
+['v-data','p-data','tr-data','pag-data'].forEach(id=>document.getElementById(id).value=hj);
+updateDashboard();populateRotaSelects();
+if(!GAS_URL){document.getElementById('config-banner').style.display='flex';setSyncStatus('off');}
+else{setSyncStatus('ok');}
+</script>
+</body>
+</html>
